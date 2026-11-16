@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EchoLite</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <h1>EchoLite</h1>
+      <div id="status" class="status">Ready</div>
+    </header>
+
+    <main id="chat" class="chat"></main>
+
+    <div class="voice-area">
+      <button id="micBtn" class="mic-btn" title="Start voice">
+        🎤
+      </button>
+      <div id="voiceStatus" class="voice-status">
+        Tap mic and speak
+      </div>
+    </div>
+
+    <footer class="input-bar">
+      <input
+        id="textInput"
+        class="text-input"
+        type="text"
+        placeholder="Type your message..."
+        autocomplete="off"
+      />
+      <button id="sendBtn" class="send-btn">Send</button>
+    </footer>
+
+    <audio id="assistantAudio" class="assistant-audio" controls></audio>
+  </div>
+
+  <script src="/static/vad.js"></script>
+  <script src="/static/recorder.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

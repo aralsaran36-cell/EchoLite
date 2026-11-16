@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Environment variables
+.env
+
+# Model files
+models/
+*.gguf
+*.bin
+*.safetensors
+
+# Audio / media
+*.wav
+*.mp3
+*.webm
+*.mp4
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
