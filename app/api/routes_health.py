@@ -1,4 +1,6 @@
+import asyncio
 import shutil
+import urllib.request
 
 from fastapi import APIRouter, Depends
 
@@ -11,11 +13,23 @@ router = APIRouter(
 )
 
 
+def _model_server_ready(base_url: str) -> bool:
+    try:
+        url = base_url.rstrip("/") + "/health"
+        with urllib.request.urlopen(url, timeout=1.0) as response:
+            return response.status == 200
+    except Exception:
+        return False
+
+
 @router.get("")
-def health(
+async def health(
     settings: Settings = Depends(get_app_settings),
 ):
     ffmpeg_available = shutil.which("ffmpeg") is not None
+    model_loaded = await asyncio.to_thread(
+        _model_server_ready, settings.llama_cpp_server_url
+    )
 
     return {
         "status": "ok",
@@ -23,6 +37,6 @@ def health(
         "version": settings.app_version,
         "model_id": settings.model_id,
         "model_server": settings.llama_cpp_server_url,
-        "model_loaded": False,
+        "model_loaded": model_loaded,
         "ffmpeg_available": ffmpeg_available,
     }

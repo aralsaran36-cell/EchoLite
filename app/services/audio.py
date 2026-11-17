@@ -1,20 +1,28 @@
+import io
 import shutil
 import subprocess
 import tempfile
+import wave
 from pathlib import Path
 
 from app.core.errors import AudioValidationError
 
 
-ALLOWED_EXTENSIONS = {".wav", ".mp3", ".m4a", ".ogg", ".webm"}
+ALLOWED_EXTENSIONS = {".wav", ".mp3", ".m4a", ".mp4", ".ogg", ".webm", ".flac"}
 ALLOWED_MIME_TYPES = {
     "audio/wav",
     "audio/x-wav",
     "audio/mpeg",
     "audio/mp4",
+    "audio/x-m4a",
+    "video/mp4",
     "audio/ogg",
     "audio/webm",
+    "video/webm",
+    "audio/flac",
 }
+
+FFMPEG_TIMEOUT_SECONDS = 30
 
 
 def validate_audio(
@@ -40,7 +48,9 @@ def validate_audio(
             f"Unsupported audio format: {extension}"
         )
 
-    if content_type not in ALLOWED_MIME_TYPES:
+    base_type = content_type.split(";")[0].strip().lower()
+
+    if base_type not in ALLOWED_MIME_TYPES:
         raise AudioValidationError(
             f"Unsupported content type: {content_type}"
         )
@@ -48,9 +58,15 @@ def validate_audio(
     return audio_bytes
 
 
+def _wav_duration_seconds(wav_bytes: bytes) -> float:
+    with wave.open(io.BytesIO(wav_bytes), "rb") as wav_file:
+        return wav_file.getnframes() / float(wav_file.getframerate())
+
+
 def convert_to_wav(
     audio_bytes: bytes,
     input_extension: str = ".webm",
+    max_seconds: float | None = None,
 ) -> bytes:
     ffmpeg = shutil.which("ffmpeg")
 
@@ -65,25 +81,42 @@ def convert_to_wav(
 
         input_path.write_bytes(audio_bytes)
 
-        result = subprocess.run(
-            [
-                ffmpeg,
-                "-y",
-                "-i",
-                str(input_path),
-                "-ar",
-                "16000",
-                "-ac",
-                "1",
-                str(output_path),
-            ],
-            capture_output=True,
-            check=False,
-        )
+        try:
+            result = subprocess.run(
+                [
+                    ffmpeg,
+                    "-y",
+                    "-i",
+                    str(input_path),
+                    "-ar",
+                    "16000",
+                    "-ac",
+                    "1",
+                    str(output_path),
+                ],
+                capture_output=True,
+                check=False,
+                timeout=FFMPEG_TIMEOUT_SECONDS,
+            )
+        except subprocess.TimeoutExpired:
+            raise AudioValidationError("Audio conversion timed out")
 
         if result.returncode != 0:
             raise AudioValidationError(
                 "Could not convert audio to WAV"
             )
 
-        return output_path.read_bytes()
+        wav_bytes = output_path.read_bytes()
+
+    if max_seconds is not None:
+        try:
+            duration = _wav_duration_seconds(wav_bytes)
+        except (wave.Error, EOFError):
+            raise AudioValidationError("Converted audio is not valid")
+
+        if duration > max_seconds:
+            raise AudioValidationError(
+                f"Audio is too long. Maximum is {int(max_seconds)} seconds"
+            )
+
+    return wav_bytes

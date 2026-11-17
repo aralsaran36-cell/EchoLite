@@ -4,27 +4,96 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EchoLite</title>
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body>
   <div class="app">
     <header class="topbar">
-      <h1>EchoLite</h1>
-      <div id="status" class="status">Ready</div>
+      <div class="brand">
+        <svg class="logo" viewBox="0 0 24 24" width="30" height="30" fill="currentColor" aria-hidden="true">
+          <rect x="2" y="9" width="2.5" height="6" rx="1.2"/>
+          <rect x="6.5" y="5" width="2.5" height="14" rx="1.2"/>
+          <rect x="11" y="2" width="2.5" height="20" rx="1.2"/>
+          <rect x="15.5" y="6" width="2.5" height="12" rx="1.2"/>
+          <rect x="20" y="9" width="2.5" height="6" rx="1.2"/>
+        </svg>
+        <h1>EchoLite</h1>
+      </div>
+
+      <div class="tabs">
+        <button id="tabVoice" class="tab active" type="button">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <rect x="9" y="3" width="6" height="12" rx="3" fill="currentColor"/>
+            <path d="M5 11a7 7 0 0014 0"/><path d="M12 18v3"/>
+          </svg>
+          <span>Voice</span>
+        </button>
+        <button id="tabText" class="tab" type="button">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="2" y="6" width="20" height="12" rx="2"/>
+            <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>
+          </svg>
+          <span>Text</span>
+        </button>
+      </div>
     </header>
 
     <main id="chat" class="chat"></main>
 
-    <div class="voice-area">
-      <button id="micBtn" class="mic-btn" title="Start voice">
-        🎤
-      </button>
-      <div id="voiceStatus" class="voice-status">
-        Tap mic and speak
-      </div>
+    <div id="errorBanner" class="error-banner hidden" role="alert">
+      <span id="errorText" class="error-text"></span>
+      <button id="retryBtn" class="retry-btn" type="button">Retry</button>
     </div>
 
-    <footer class="input-bar">
+    <section id="voicePanel" class="voice-area">
+      <div id="micArea" class="mic-area" data-state="idle">
+        <div id="stateLabel" class="state-label">Tap mic and speak</div>
+
+        <div class="state-visual">
+          <div class="mic-ring">
+            <button id="micBtn" class="mic-btn" type="button" title="Start voice">
+              <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <rect x="9" y="3" width="6" height="12" rx="3" fill="currentColor"/>
+                <path d="M5 11a7 7 0 0014 0"/><path d="M12 18v3"/>
+              </svg>
+            </button>
+          </div>
+
+          <div id="levelBar" class="level-bar" aria-hidden="true">
+            <div id="levelFill" class="level-fill"></div>
+          </div>
+
+          <div id="spinner" class="spinner" aria-hidden="true"></div>
+
+          <div id="waves" class="waves" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+
+        <button id="stopBtn" class="stop-btn" type="button">
+          <span class="stop-icon"></span> Stop
+        </button>
+      </div>
+
+      <label class="silence-row" for="silenceSelect">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+          <rect x="3" y="9" width="2.5" height="6" rx="1.2"/>
+          <rect x="8" y="5" width="2.5" height="14" rx="1.2"/>
+          <rect x="13" y="8" width="2.5" height="8" rx="1.2"/>
+          <rect x="18" y="10" width="2.5" height="4" rx="1.2"/>
+        </svg>
+        <span>Silence threshold:</span>
+        <select id="silenceSelect" class="silence-select">
+          <option value="800">0.8 seconds</option>
+          <option value="1200">1.2 seconds</option>
+          <option value="1500" selected>1.5 seconds</option>
+          <option value="2000">2.0 seconds</option>
+        </select>
+      </label>
+    </section>
+
+    <footer id="textPanel" class="input-bar hidden">
       <input
         id="textInput"
         class="text-input"
@@ -32,14 +101,15 @@
         placeholder="Type your message..."
         autocomplete="off"
       />
-      <button id="sendBtn" class="send-btn">Send</button>
+      <button id="sendBtn" class="send-btn" type="button">Send</button>
     </footer>
 
-    <audio id="assistantAudio" class="assistant-audio" controls></audio>
+    <audio id="assistantAudio" class="assistant-audio"></audio>
   </div>
 
-  <script src="/static/vad.js"></script>
-  <script src="/static/recorder.js"></script>
-  <script src="/static/app.js"></script>
+  <script src="/static/js/vad.js"></script>
+  <script src="/static/js/recorder.js"></script>
+  <script src="/static/js/player.js"></script>
+  <script src="/static/js/app.js"></script>
 </body>
 </html>

@@ -4,6 +4,7 @@ class AudioRecorder {
     this.recorder = null;
     this.chunks = [];
     this.startTime = null;
+    this.lastDuration = 0;
   }
 
   async start() {
@@ -16,6 +17,7 @@ class AudioRecorder {
     });
 
     this.chunks = [];
+    this.lastDuration = 0;
     this.recorder = new MediaRecorder(this.stream);
 
     this.recorder.ondataavailable = event => {
@@ -35,7 +37,9 @@ class AudioRecorder {
 
     return new Promise(resolve => {
       this.recorder.onstop = () => {
-        const blob = new Blob(this.chunks, { type: "audio/webm" });
+        this.lastDuration = (Date.now() - this.startTime) / 1000;
+        const mimeType = this.recorder.mimeType || "audio/webm";
+        const blob = new Blob(this.chunks, { type: mimeType });
         this.cleanup();
         resolve(blob);
       };
@@ -45,8 +49,10 @@ class AudioRecorder {
   }
 
   getDurationSeconds() {
-    if (!this.startTime) return 0;
-    return (Date.now() - this.startTime) / 1000;
+    if (this.startTime) {
+      return (Date.now() - this.startTime) / 1000;
+    }
+    return this.lastDuration;
   }
 
   cleanup() {

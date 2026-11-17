@@ -1,31 +1,44 @@
 class VoiceActivityDetector {
-  constructor({ onSpeechStart, onSilence, silenceMs = 1500, threshold = 30 }) {
+  constructor({
+    stream,
+    onSpeechStart,
+    onSilence,
+    onNoSpeech,
+    silenceMs = 1500,
+    noSpeechMs = 12000,
+    threshold = 30
+  }) {
+    this.stream = stream;
     this.onSpeechStart = onSpeechStart;
     this.onSilence = onSilence;
+    this.onNoSpeech = onNoSpeech;
     this.silenceMs = silenceMs;
+    this.noSpeechMs = noSpeechMs;
     this.threshold = threshold;
 
     this.audioContext = null;
     this.analyser = null;
     this.source = null;
-    this.stream = null;
     this.rafId = null;
 
     this.speaking = false;
+    this.heardSpeech = false;
     this.silenceStart = null;
+    this.startedAt = null;
     this.stopped = false;
   }
 
   async start() {
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      }
-    });
+    if (!this.stream) {
+      throw new Error("VoiceActivityDetector needs a stream");
+    }
 
     this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+    if (this.audioContext.state === "suspended") {
+      await this.audioContext.resume();
+    }
+
     this.source = this.audioContext.createMediaStreamSource(this.stream);
     this.analyser = this.audioContext.createAnalyser();
     this.analyser.fftSize = 2048;
@@ -33,11 +46,12 @@ class VoiceActivityDetector {
     this.source.connect(this.analyser);
 
     this.stopped = false;
+    this.startedAt = Date.now();
     this.loop();
   }
 
   loop = () => {
-    if (this.stopped) return;
+    if (this.stopped || !this.analyser) return;
 
     const data = new Uint8Array(this.analyser.frequencyBinCount);
     this.analyser.getByteFrequencyData(data);
@@ -54,6 +68,7 @@ class VoiceActivityDetector {
 
       if (!this.speaking) {
         this.speaking = true;
+        this.heardSpeech = true;
         this.onSpeechStart?.();
       }
     } else if (this.speaking) {
@@ -69,6 +84,12 @@ class VoiceActivityDetector {
         this.onSilence?.();
         return;
       }
+    } else if (
+      !this.heardSpeech &&
+      Date.now() - this.startedAt >= this.noSpeechMs
+    ) {
+      this.onNoSpeech?.();
+      return;
     }
 
     this.rafId = requestAnimationFrame(this.loop);
@@ -82,12 +103,12 @@ class VoiceActivityDetector {
       this.rafId = null;
     }
 
-    this.stream?.getTracks().forEach(track => track.stop());
+    this.source?.disconnect();
     this.audioContext?.close();
 
-    this.stream = null;
     this.audioContext = null;
     this.analyser = null;
     this.source = null;
+    this.stream = null;
   }
 }
