@@ -51,7 +51,6 @@ async def test_process_audio_success():
         mock_client = MagicMock()
         mock_client.post = AsyncMock(
             side_effect=[
-                _chat_response("What is Java"),
                 _chat_response("Java is a programming language."),
                 _tts_response(b"fake-wav-audio"),
             ]
@@ -59,11 +58,11 @@ async def test_process_audio_success():
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
         result = await adapter.process_audio(
-            audio_bytes=b"fake-audio",
+            transcript="What is Java",
             history=[],
         )
 
-    assert mock_client.post.await_count == 3
+    assert mock_client.post.await_count == 2
     assert result["user_transcript"] == "What is Java"
     assert result["assistant_text"] == "Java is a programming language."
     assert result["audio_bytes"] == b"fake-wav-audio"
@@ -110,7 +109,7 @@ async def test_process_audio_http_error():
 
         with pytest.raises(ModelServerError):
             await adapter.process_audio(
-                audio_bytes=b"fake-audio",
+                transcript="What is Java",
                 history=[],
             )
 

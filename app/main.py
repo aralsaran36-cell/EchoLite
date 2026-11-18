@@ -29,10 +29,18 @@ async def lifespan(app: FastAPI):
         timeout_seconds=settings.request_timeout_seconds,
     )
 
+    from app.services.asr import SeamlessASR
+    from app.services.translate import SeamlessTranslator
+
+    app.state.asr = SeamlessASR()
+    app.state.translator = SeamlessTranslator()
+
     yield
 
     app.state.session_store = None
     app.state.model_adapter = None
+    app.state.asr = None
+    app.state.translator = None
 
 
 def create_app() -> FastAPI:

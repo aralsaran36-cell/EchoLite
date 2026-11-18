@@ -7,13 +7,15 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.config import Settings, get_settings
-from app.core.errors import ModelServerError
+from app.core.errors import AudioValidationError, ModelServerError
 from app.core.logging import get_logger
 from app.core.session_store import SessionStore
 from app.dependencies import (
     get_app_settings,
+    get_asr,
     get_model_adapter,
     get_session_store,
+    get_translator,
 )
 from app.schemas.turn import TextTurnRequest, TurnResponse
 from app.services.audio import convert_to_wav, validate_audio
@@ -60,6 +62,7 @@ async def create_turn(
     file: UploadFile = File(...),
     session_store: SessionStore = Depends(get_session_store),
     model_adapter: LFM3Adapter = Depends(get_model_adapter),
+    asr=Depends(get_asr),
     settings: Settings = Depends(get_app_settings),
 ):
     started = time.perf_counter()
@@ -84,8 +87,13 @@ async def create_turn(
     history = session_store.get_history(session_id)
 
     try:
+        transcript = await asyncio.to_thread(asr.transcribe, wav_bytes)
+
+        if not transcript:
+            raise AudioValidationError("No speech understood. Please try again.")
+
         result = await model_adapter.process_audio(
-            audio_bytes=wav_bytes,
+            transcript=transcript,
             history=history,
         )
     except ModelServerError:
@@ -119,14 +127,17 @@ async def create_text_turn(
     body: TextTurnRequest,
     session_store: SessionStore = Depends(get_session_store),
     model_adapter: LFM3Adapter = Depends(get_model_adapter),
+    translator=Depends(get_translator),
 ):
     started = time.perf_counter()
 
     history = session_store.get_history(body.session_id)
 
     try:
+        english_text = await asyncio.to_thread(translator.translate, body.text)
+
         result = await model_adapter.process_text(
-            text=body.text,
+            text=english_text,
             history=history,
         )
     except ModelServerError:
@@ -138,7 +149,7 @@ async def create_text_turn(
 
     session_store.add_turn(
         session_id=body.session_id,
-        user_text=body.text,
+        user_text=english_text,
         assistant_text=result["assistant_text"],
     )
 

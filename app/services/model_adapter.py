@@ -1,4 +1,3 @@
-import base64
 import io
 import re
 import wave
@@ -8,7 +7,8 @@ import httpx
 from app.core.errors import ModelServerError
 
 SYSTEM_PROMPT = (
-    "You are a friendly voice assistant. Reply in plain conversational text, "
+    "You are a friendly voice assistant. Always reply in English, "
+    "whatever language the user writes in. Reply in plain conversational text, "
     "the way a person talks. Do not use markdown, asterisks, bullet points, "
     "numbered lists, headings or emojis. Keep answers short, 2 to 3 sentences."
 )
@@ -67,8 +67,9 @@ class LFM3Adapter:
     async def _chat(
         self,
         messages: list[dict],
-        max_tokens: int = 256,
+        max_tokens: int = 520,
         use_system_prompt: bool = True,
+        temperature: float = 0.7,
     ) -> str:
         if use_system_prompt:
             messages = [{"role": "system", "content": SYSTEM_PROMPT}, *messages]
@@ -76,7 +77,7 @@ class LFM3Adapter:
         payload = {
             "messages": messages,
             "max_tokens": max_tokens,
-            "temperature": 0.7,
+            "temperature": temperature,
             "frequency_penalty": 0.5,
             "repeat_penalty": 1.15,
         }
@@ -134,32 +135,13 @@ class LFM3Adapter:
 
     async def process_audio(
         self,
-        audio_bytes: bytes,
+        transcript: str,
         history: list[dict],
     ) -> dict:
-        audio_b64 = base64.b64encode(audio_bytes).decode("ascii")
+         reply = await self._chat([*history, {"role": "user", "content": transcript}])
+         audio = await self._speak(reply)
 
-        transcript = await self._chat(
-            [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "input_audio",
-                            "input_audio": {"data": audio_b64, "format": "wav"},
-                        },
-                        {"type": "text", "text": "Perform ASR."},
-                    ],
-                }
-            ],
-            max_tokens=256,
-            use_system_prompt=False,
-        )
-
-        reply = await self._chat([*history, {"role": "user", "content": transcript}])
-        audio = await self._speak(reply)
-
-        return {
+         return {
             "user_transcript": transcript,
             "assistant_text": reply,
             "audio_bytes": audio,
